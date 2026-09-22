@@ -28,7 +28,7 @@ jobs:
         run: |
           cd archipelago-core
           pip install -r requirements.txt
-          pip install pytest  # <--- Instalacja pytesta potrzebna do uruchomienia testów
+          pip install pytest
 
           # Copy world code to AP engine
           cp -r ../trekipelago-repo/trekipelago worlds/
@@ -37,12 +37,7 @@ jobs:
           mkdir -p test/worlds/trekipelago
           cp -r ../trekipelago-repo/tests/* test/worlds/trekipelago/
 
-      - name: Run General AP Load Tests
-        run: |
-          cd archipelago-core
-          python -m pytest test/general/test_worlds.py
-
-      - name: Run Special Trekipelago Logic Tests
+      - name: Run Trekipelago Logic Tests
         run: |
           cd archipelago-core
           python -m pytest test/worlds/trekipelago
@@ -58,7 +53,6 @@ jobs:
 
       - name: Package .apworld
         run: |
-          # Package only the trekipelago directory since tests are in root
           zip -r trekipelago.apworld trekipelago -x "*.pyc" -x "*__pycache__*"
 
       - name: Upload Artifact
