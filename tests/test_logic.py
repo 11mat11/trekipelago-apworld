@@ -21,9 +21,9 @@ class TestTrekipelagoStandard(TrekipelagoTestBase):
 
 class TestTrekipelagoSnappingAndFallback(TrekipelagoTestBase):
     options = {
-        # Highly incorrect options: interval larger than goal, uneven numbers, zero goal locations etc.
-        "total_distance": 125,  # Will be snapped to 150
-        "distance_interval": 333,  # Will be forcibly clamped down to rescue minimum required location limits
+        # Highly incorrect logical combinations, BUT technically within AP's hard valid yaml range_start limits.
+        "total_distance": 500,  # Lowest allowed, technically gives enough (if step is 50), but we ruin it...
+        "distance_interval": 3333,  # Exceeds total distance, weird number!
         "max_orbs": 0,  # Zero to force core generation onto distance only
         "goal": 0,
     }
