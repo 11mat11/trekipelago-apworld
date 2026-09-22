@@ -28,6 +28,7 @@ jobs:
         run: |
           cd archipelago-core
           pip install -r requirements.txt
+          pip install pytest  # <--- Instalacja pytesta potrzebna do uruchomienia testów
 
           # Copy world code to AP engine
           cp -r ../trekipelago-repo/trekipelago worlds/
