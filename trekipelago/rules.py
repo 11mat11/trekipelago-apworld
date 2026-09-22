@@ -19,7 +19,6 @@ def set_rules(multiworld, player):
 
     # Calculate safe bounding indexes for the 9 core progression items.
     # This completely prevents "FillError" logical deadlocks when there are very few locations.
-    # k is the number of items required. loc_index guarantees we have at least k free locations prior.
     target_reqs = []
     for k in range(1, 10):
         # e.g., if we require 1 item (k=1), we can put the restriction on location 2 or later.
@@ -46,24 +45,10 @@ def set_rules(multiworld, player):
         loc_name = f"{dist}m"
         location = multiworld.get_location(loc_name, player)
 
-        # Linear dependency: unlock distance step by step
-        if i > 1:
-            if i - 1 == num_dist_locs and has_remainder:
-                prev_dist = (
-                    total_dist  # Technically never happens, but added for clarity
-                )
-            else:
-                prev_dist = (i - 1) * interval
-
-            prev_loc_name = f"{prev_dist}m"
-            add_rule(
-                location,
-                lambda state, prev=prev_loc_name: state.can_reach(
-                    prev, "Location", player
-                ),
-            )
-
         # Pull dynamic requirements mapped to this specific iteration step securely
+        # Note: We rely purely on item accumulation rules. Linear `can_reach(prev_loc)` chains
+        # were removed because they cause severe 'self-locking' deadlocks in AP's Fill algorithm
+        # when forcing items into tight location constraints.
         req_bg = i >= req_bg_idx
         req_speed = sum(1 for idx in req_speed_idx if i >= idx)
         req_pc = sum(1 for idx in req_pc_idx if i >= idx)
@@ -71,25 +56,12 @@ def set_rules(multiworld, player):
         if req_bg or req_pc > 0 or req_speed > 0:
             add_rule(location, make_pacing_rule(req_bg, req_pc, req_speed))
 
-    # 2. Linear Rules for Orbs (Collected sequentially)
+    # 2. Victory Condition
     max_orbs = opts["max_orbs"]
     orbs_per_reward = opts["orbs_per_reward"]
     num_orb_locs = opts["num_orb_locs"]
+    num_orb_locs = max(0, num_orb_locs)  # Safe guard
 
-    if max_orbs > 0:
-        for i in range(1, num_orb_locs + 1):
-            if i > 1:
-                loc_name = f"{i * orbs_per_reward} Orbs"
-                prev_loc_name = f"{(i - 1) * orbs_per_reward} Orbs"
-                location = multiworld.get_location(loc_name, player)
-                add_rule(
-                    location,
-                    lambda state, prev=prev_loc_name: state.can_reach(
-                        prev, "Location", player
-                    ),
-                )
-
-    # 3. Victory Condition
     final_dist_loc = (
         f"{total_dist}m" if has_remainder else f"{(num_dist_locs) * interval}m"
     )
