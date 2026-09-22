@@ -17,6 +17,25 @@ def set_rules(multiworld, player):
             and (speed == 0 or state.has("Progressive Speed", player, speed))
         )
 
+    # Calculate safe bounding indexes for the 9 core progression items.
+    # This completely prevents "FillError" logical deadlocks when there are very few locations.
+    # k is the number of items required. loc_index guarantees we have at least k free locations prior.
+    target_reqs = []
+    for k in range(1, 10):
+        # e.g., if we require 1 item (k=1), we can put the restriction on location 2 or later.
+        loc_index = max(k + 1, (k * num_dist_locs) // 10 + 1)
+        target_reqs.append(loc_index)
+
+    req_bg_idx = target_reqs[0]
+    req_speed_idx = [
+        target_reqs[1],
+        target_reqs[3],
+        target_reqs[4],
+        target_reqs[6],
+        target_reqs[7],
+    ]
+    req_pc_idx = [target_reqs[2], target_reqs[5], target_reqs[8]]
+
     # 1. Distance Pacing Rules
     for i in range(1, num_dist_locs + 1):
         if i == num_dist_locs and has_remainder:
@@ -44,27 +63,10 @@ def set_rules(multiworld, player):
                 ),
             )
 
-        req_bg = i >= max(2, (num_dist_locs * 15) // 100)
-
-        req_pc = 0
-        if i >= (num_dist_locs * 95) // 100:
-            req_pc = 3
-        elif i >= (num_dist_locs * 65) // 100:
-            req_pc = 2
-        elif i >= (num_dist_locs * 33) // 100:
-            req_pc = 1
-
-        req_speed = 0
-        if i >= (num_dist_locs * 95) // 100:
-            req_speed = 5
-        elif i >= (num_dist_locs * 80) // 100:
-            req_speed = 4
-        elif i >= (num_dist_locs * 60) // 100:
-            req_speed = 3
-        elif i >= (num_dist_locs * 40) // 100:
-            req_speed = 2
-        elif i >= (num_dist_locs * 20) // 100:
-            req_speed = 1
+        # Pull dynamic requirements mapped to this specific iteration step securely
+        req_bg = i >= req_bg_idx
+        req_speed = sum(1 for idx in req_speed_idx if i >= idx)
+        req_pc = sum(1 for idx in req_pc_idx if i >= idx)
 
         if req_bg or req_pc > 0 or req_speed > 0:
             add_rule(location, make_pacing_rule(req_bg, req_pc, req_speed))
