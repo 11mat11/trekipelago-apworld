@@ -1,0 +1,93 @@
+name: Trekipelago CI/CD
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    name: "Run Unit & Generation Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Trekipelago World
+        uses: actions/checkout@v4
+        with:
+          path: trekipelago-repo
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Clone Archipelago Core
+        run: git clone --depth 1 https://github.com/ArchipelagoMW/Archipelago.git archipelago-core
+
+      - name: Install Dependencies & Mount World
+        run: |
+          cd archipelago-core
+          pip install -r requirements.txt
+
+          # Copy world code to AP engine
+          cp -r ../trekipelago-repo/trekipelago worlds/
+
+          # Copy test files to structured AP test tree
+          mkdir -p test/worlds/trekipelago
+          cp -r ../trekipelago-repo/tests/* test/worlds/trekipelago/
+
+      - name: Run General AP Load Tests
+        run: |
+          cd archipelago-core
+          python -m pytest test/general/test_worlds.py
+
+      - name: Run Special Trekipelago Logic Tests
+        run: |
+          cd archipelago-core
+          python -m pytest test/worlds/trekipelago
+
+  build-pr-artifact:
+    name: "Test Build (PR Artifact)"
+    needs: test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Trekipelago World
+        uses: actions/checkout@v4
+
+      - name: Package .apworld
+        run: |
+          # Package only the trekipelago directory since tests are in root
+          zip -r trekipelago.apworld trekipelago -x "*.pyc" -x "*__pycache__*"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trekipelago-apworld-test-build
+          path: trekipelago.apworld
+
+  build-and-release:
+    name: "Package .apworld & Release"
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Trekipelago World
+        uses: actions/checkout@v4
+
+      - name: Package .apworld
+        run: |
+          zip -r trekipelago.apworld trekipelago -x "*.pyc" -x "*__pycache__*"
+
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Main Build"
+          body: "Automatically generated .apworld package (Trekipelago)."
+          files: trekipelago.apworld
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
