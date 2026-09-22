@@ -18,10 +18,8 @@ def set_rules(multiworld, player):
         )
 
     # Calculate safe bounding indexes for the 9 core progression items.
-    # This completely prevents "FillError" logical deadlocks when there are very few locations.
     target_reqs = []
     for k in range(1, 10):
-        # e.g., if we require 1 item (k=1), we can put the restriction on location 2 or later.
         loc_index = max(k + 1, (k * num_dist_locs) // 10 + 1)
         target_reqs.append(loc_index)
 
@@ -45,16 +43,29 @@ def set_rules(multiworld, player):
         loc_name = f"{dist}m"
         location = multiworld.get_location(loc_name, player)
 
-        # Pull dynamic requirements mapped to this specific iteration step securely
-        # Note: We rely purely on item accumulation rules. Linear `can_reach(prev_loc)` chains
-        # were removed because they cause severe 'self-locking' deadlocks in AP's Fill algorithm
-        # when forcing items into tight location constraints.
         req_bg = i >= req_bg_idx
         req_speed = sum(1 for idx in req_speed_idx if i >= idx)
         req_pc = sum(1 for idx in req_pc_idx if i >= idx)
 
+        # Apply state access rules
         if req_bg or req_pc > 0 or req_speed > 0:
             add_rule(location, make_pacing_rule(req_bg, req_pc, req_speed))
+
+        # Prevent AP's fill algorithm from causing self-locking deadlocks.
+        # If a location strictly requires ALL copies of a specific item to be entered,
+        # it is mathematically impossible to FIND that item INSIDE the location!
+        forbidden_items = []
+        if req_bg:
+            forbidden_items.append("Background Tracking")  # Only 1 in game
+        if req_pc == 3:
+            forbidden_items.append("Passive Collector")  # 3 total in game
+        if req_speed == 5:
+            forbidden_items.append("Progressive Speed")  # 5 total in game
+
+        if forbidden_items:
+            location.item_rule = lambda item, forbidden=forbidden_items: (
+                item.name not in forbidden
+            )
 
     # 2. Victory Condition
     max_orbs = opts["max_orbs"]
