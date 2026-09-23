@@ -1,5 +1,1 @@
-from test.bases import WorldTestBase
-
-
-class TrekipelagoTestBase(WorldTestBase):
-    game = "Trekipelago"
+"""Trekipelago tests, run inside an Archipelago checkout."""

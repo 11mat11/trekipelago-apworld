@@ -1,23 +1,24 @@
+import logging
 import math
 from typing import Any, Dict
 
-from BaseClasses import Item, MultiWorld, Tutorial
+from BaseClasses import CollectionState, Tutorial
 from worlds.AutoWorld import WebWorld, World
 
-from .items import (
-    TREKIPELAGO_ITEM_BASE_ID,
-    TrekipelagoItem,
-    get_filler_item_name,
-    item_dictionary,
-)
+from .items import TrekipelagoItem, get_filler_item_name, item_dictionary
 from .locations import (
     TREKIPELAGO_LOCATION_BASE_ID,
     TrekipelagoLocation,
+    distance_location_name,
     location_name_to_id,
+    orb_location_name,
 )
-from .options import TrekipelagoOptions
+from .options import DISTANCE_STEP, MAX_ORB_CHECKS, SHORT_DISTANCE_STEP, TrekipelagoOptions
 from .regions import create_regions
 from .rules import set_rules
+
+# Room for the 9 core progression items plus at least 6 filler items.
+MIN_LOCATIONS = 15
 
 
 class TrekipelagoWeb(WebWorld):
@@ -41,82 +42,95 @@ class TrekipelagoWorld(World):
 
     game = "Trekipelago"
     options_dataclass = TrekipelagoOptions
-    options_dict = TrekipelagoOptions
+    options: TrekipelagoOptions
 
     topology_present = False
-    data_version = 1
     web = TrekipelagoWeb()
 
     item_name_to_id = {name: data["id"] for name, data in item_dictionary.items()}
     location_name_to_id = location_name_to_id
 
-    def _get_option_value(self, option_name: str) -> Any:
-        if hasattr(self, "options") and hasattr(self.options, option_name):
-            return getattr(self.options, option_name).value
-        return getattr(self.multiworld, option_name)[self.player].value
+    _snapped: Dict[str, Any]
+
+    def generate_early(self) -> None:
+        self._snapped = self._snap_options()
+        # Pacing rules alone do not constrain where another player's copy lands.
+        # Request sphere-zero placement across the entire multiworld.
+        self.multiworld.early_items[self.player]["Background Tracking"] = 1
 
     def get_snapped_options(self) -> Dict[str, Any]:
+        if not hasattr(self, "_snapped"):
+            self._snapped = self._snap_options()
+        return self._snapped
+
+    def _warn(self, message: str) -> None:
+        logging.warning(
+            f"Trekipelago ({self.multiworld.get_player_name(self.player)}): {message}"
+        )
+
+    def _snap_options(self) -> Dict[str, Any]:
         """
-        Intelligently snaps user YAML options to guarantee logic completion
-        without throwing setup errors. Also validates there are at least 9
-        core progression locations.
+        Turn raw YAML options into a concrete, always-generatable layout:
+        - total distance is given in km and converted to meters (always on the grid),
+        - the interval is snapped to the DISTANCE_STEP grid and clamped to the total,
+        - orb checks are capped at MAX_ORB_CHECKS by raising orbs_per_reward,
+        - at least MIN_LOCATIONS locations are guaranteed for the core progression.
+        Every adjustment is logged so the host can see what changed.
         """
-        total_dist = self._get_option_value("total_distance")
-        interval = self._get_option_value("distance_interval")
-        max_orbs = self._get_option_value("max_orbs")
-        orbs_per_reward = self._get_option_value("orbs_per_reward")
-        goal = self._get_option_value("goal")
-        buff_ratio = self._get_option_value("buff_ratio")
+        total_dist = self.options.total_distance.value * 1000
 
-        # Snap interval and distance to a multiple of 50 (required for pre-generated dictionary)
-        interval = max(50, round(interval / 50) * 50)
-        total_dist = max(50, round(total_dist / 50) * 50)
+        requested_interval = self.options.distance_interval.value
+        interval = max(
+            DISTANCE_STEP, int(requested_interval / DISTANCE_STEP + 0.5) * DISTANCE_STEP
+        )
+        interval = min(interval, total_dist)
+        if interval != requested_interval:
+            self._warn(f"distance_interval {requested_interval}m snapped to {interval}m.")
 
-        # Fallback if interval is larger than goal
-        if interval > total_dist:
-            interval = total_dist
+        max_orbs = self.options.max_orbs.value
+        orbs_per_reward = self.options.orbs_per_reward.value
+        num_orb_locations = 0
+        if max_orbs > 0:
+            min_per_reward = math.ceil(max_orbs / MAX_ORB_CHECKS)
+            if orbs_per_reward < min_per_reward:
+                self._warn(
+                    f"orbs_per_reward raised from {orbs_per_reward} to {min_per_reward} "
+                    f"to stay within {MAX_ORB_CHECKS} orb checks."
+                )
+                orbs_per_reward = min_per_reward
+            num_orb_locations = math.ceil(max_orbs / orbs_per_reward)
 
-        num_dist_locations = total_dist // interval
-        has_remainder = total_dist % interval != 0
-        if has_remainder:
-            num_dist_locations += 1
+        num_dist_locations = math.ceil(total_dist / interval)
 
-        num_orb_locations = (max_orbs // orbs_per_reward) if max_orbs > 0 else 0
-        total_locations = num_dist_locations + num_orb_locations
+        # Keep the selected total distance and orb settings. A 1 km run with
+        # fewer than 5 orb checks needs the supplemental 50 m distance grid.
+        if num_dist_locations + num_orb_locations < MIN_LOCATIONS:
+            interval = DISTANCE_STEP
+            num_dist_locations = math.ceil(total_dist / interval)
+            if num_dist_locations + num_orb_locations < MIN_LOCATIONS:
+                interval = SHORT_DISTANCE_STEP
+                num_dist_locations = math.ceil(total_dist / interval)
+            self._warn(
+                f"fewer than {MIN_LOCATIONS} locations; distance_interval reduced to "
+                f"{interval}m ({num_dist_locations} distance checks)."
+            )
 
-        # Auto-adjust: guarantee minimum 9 locations for core progression items!
-        if total_locations < 9:
-            required_dist_locs = 9 - num_orb_locations
-            if required_dist_locs > 0:
-                new_interval = total_dist // required_dist_locs
-                new_interval = max(50, round(new_interval / 50) * 50)
-
-                # If we rounded down and still lack locations (e.g., from 100) or it's < 50
-                if (
-                    total_dist // max(50, new_interval)
-                    + (1 if total_dist % max(50, new_interval) != 0 else 0)
-                    < required_dist_locs
-                ):
-                    new_interval = 50
-                    # Force total_dist up to fit 9 checks at 50 units each
-                    total_dist = required_dist_locs * new_interval
-
-                interval = new_interval
-                num_dist_locations = total_dist // interval
-                has_remainder = total_dist % interval != 0
-                if has_remainder:
-                    num_dist_locations += 1
+        # The last distance check always sits exactly on the total distance.
+        distances = [min(i * interval, total_dist) for i in range(1, num_dist_locations + 1)]
+        # Like distance checks, the last orb check ends exactly at the configured maximum.
+        orbs = [min(i * orbs_per_reward, max_orbs) for i in range(1, num_orb_locations + 1)]
 
         return {
             "total_dist": total_dist,
             "interval": interval,
             "max_orbs": max_orbs,
             "orbs_per_reward": orbs_per_reward,
-            "goal": goal,
-            "buff_ratio": buff_ratio,
+            "goal": self.options.goal.value,
+            "buff_ratio": self.options.buff_ratio.value,
             "num_dist_locs": num_dist_locations,
             "num_orb_locs": num_orb_locations,
-            "has_remainder": has_remainder,
+            "distances": distances,
+            "orbs": orbs,
         }
 
     def create_regions(self):
@@ -151,16 +165,48 @@ class TrekipelagoWorld(World):
             self.multiworld.itempool.append(item)
 
     def set_rules(self):
-        set_rules(self.multiworld, self.player)
+        set_rules(self)
+
+    def finalize_multiworld(self) -> None:
+        # Early-item placement is best effort in core. Reject a late placement
+        # (including plando) instead of silently shipping a seed without tracking.
+        from Fill import FillError
+
+        state = CollectionState(self.multiworld)
+        if state.has("Background Tracking", self.player):
+            return  # Already available in the player's starting inventory.
+        locations = [
+            location for location in self.multiworld.get_filled_locations()
+            if location.item.player == self.player
+            and location.item.name == "Background Tracking"
+        ]
+        if not locations or any(not location.can_reach(state) for location in locations):
+            placement = ", ".join(str(location) for location in locations) or "not placed"
+            raise FillError(
+                f"Trekipelago ({self.multiworld.get_player_name(self.player)}): "
+                f"Background Tracking must be available in sphere 0; found at {placement}. "
+                "Check plando, excluded locations, and local/non-local item settings."
+            )
 
     def fill_slot_data(self) -> Dict[str, Any]:
         opts = self.get_snapped_options()
         return {
             "base_id": TREKIPELAGO_LOCATION_BASE_ID,
             "goal": "distance_only" if opts["goal"] == 0 else "distance_and_orbs",
+            "distance_step": min(DISTANCE_STEP, opts["interval"]),
             "distance_interval": opts["interval"],
             "total_distance": opts["total_dist"],
             "max_orbs": opts["max_orbs"],
             "orbs_per_reward": opts["orbs_per_reward"],
             "buff_ratio": opts["buff_ratio"] / 100.0,
+            # Explicit [location_id, threshold] pairs so the client never has to
+            # re-derive the ID scheme.
+            "distance_checks": [
+                [location_name_to_id[distance_location_name(d)], d]
+                for d in opts["distances"]
+            ],
+            "orb_checks": [
+                [location_name_to_id[orb_location_name(i)], orbs]
+                for i, orbs in enumerate(opts["orbs"], start=1)
+            ],
         }

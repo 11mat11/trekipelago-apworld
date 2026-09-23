@@ -10,18 +10,23 @@ Trekipelago:
   # distance_and_orbs: Win when you reach the total distance AND collect the required maximum orbs.
   goal: distance_only
 
-  # The total distance you need to travel (in meters). Max is 500,000 (500 km).
-  total_distance: 5000
+  # The total distance you need to travel (in kilometers). 1 - 500.
+  total_distance: 5
 
-  # Distance interval per location check (in meters).
-  # Will automatically snap to the nearest 50.
+  # Distance interval per location check (in meters). 100 - 1000.
+  # Will automatically snap to the nearest 100.
+  # The final interval is shortened if needed to end exactly at the total distance.
+  # At least 15 locations (distance + orbs) are generated. If needed, the interval
+  # is reduced to 100 m, or 50 m for a 1 km run, without changing the total distance.
   distance_interval: 500
 
-  # The maximum number of light orbs required before completing orb checks.
+  # The maximum number of light orbs required before completing orb checks. 0 - 1000.
   # Set to 0 to disable orb checks.
   max_orbs: 50
 
   # Number of orbs you need to collect to unlock an orb location check.
+  # At most 100 orb checks are generated; this value is raised automatically if needed.
+  # The final interval ends exactly at max_orbs (e.g. 943/100 ends with 43 orbs).
   orbs_per_reward: 5
 
   # Percentage of filler items that are useful buffs (e.g. speed boost)

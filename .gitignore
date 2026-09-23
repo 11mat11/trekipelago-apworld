@@ -1,5 +1,6 @@
 ﻿__pycache__/
 *.apworld
 *.pyc
+.pytest_cache/
 *.zip
 BUILD_INSTRUCTIONS.md

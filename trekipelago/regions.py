@@ -1,6 +1,11 @@
 from BaseClasses import Entrance, Region
 
-from .locations import TrekipelagoLocation, location_name_to_id
+from .locations import (
+    TrekipelagoLocation,
+    distance_location_name,
+    location_name_to_id,
+    orb_location_name,
+)
 
 
 def create_regions(world):
@@ -12,39 +17,21 @@ def create_regions(world):
 
     opts = world.get_snapped_options()
 
-    num_dist_locations = opts["num_dist_locs"]
-    interval = opts["interval"]
-    has_remainder = opts["has_remainder"]
-    total_dist = opts["total_dist"]
-
-    # Create locations for traveled distance (Distance checks)
-    for i in range(1, num_dist_locations + 1):
-        # If the interval does not divide the total distance evenly,
-        # the last check matches the exact total distance to ensure completion.
-        if i == num_dist_locations and has_remainder:
-            dist = total_dist
-        else:
-            dist = i * interval
-
-        loc_name = f"{dist}m"
+    # Distance checks (the last one always equals the total distance)
+    for dist in opts["distances"]:
+        loc_name = distance_location_name(dist)
         loc = TrekipelagoLocation(
             player, loc_name, location_name_to_id[loc_name], world_region
         )
         world_region.locations.append(loc)
 
-    # Create locations for collected Orbs (Orb checks)
-    max_orbs = opts["max_orbs"]
-    orbs_per_reward = opts["orbs_per_reward"]
-    num_orb_locations = opts["num_orb_locs"]
-
-    if max_orbs > 0:
-        for i in range(1, num_orb_locations + 1):
-            orbs = i * orbs_per_reward
-            loc_name = f"{orbs} Orbs"
-            loc = TrekipelagoLocation(
-                player, loc_name, location_name_to_id[loc_name], world_region
-            )
-            world_region.locations.append(loc)
+    # Orb checks (ordinal names; thresholds go to the client via slot_data)
+    for i in range(1, opts["num_orb_locs"] + 1):
+        loc_name = orb_location_name(i)
+        loc = TrekipelagoLocation(
+            player, loc_name, location_name_to_id[loc_name], world_region
+        )
+        world_region.locations.append(loc)
 
     menu_to_world = Entrance(player, "Start Trekking", menu)
     menu.exits.append(menu_to_world)

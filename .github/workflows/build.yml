@@ -10,6 +10,9 @@ jobs:
   test:
     name: "Run Unit & Generation Tests"
     runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      AP_TEST_WORLDS: trekipelago
     steps:
       - name: Checkout Trekipelago World
         uses: actions/checkout@v4
@@ -24,23 +27,25 @@ jobs:
       - name: Clone Archipelago Core
         run: git clone --depth 1 https://github.com/ArchipelagoMW/Archipelago.git archipelago-core
 
-      - name: Install Dependencies & Mount World
+      - name: Install Dependencies
+        working-directory: archipelago-core
         run: |
-          cd archipelago-core
-          pip install -r requirements.txt
-          pip install pytest
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
 
-          # Copy world code to AP engine
-          cp -r ../trekipelago-repo/trekipelago worlds/
-
-          # Copy test files to structured AP test tree
-          mkdir -p test/worlds/trekipelago
-          cp -r ../trekipelago-repo/tests/* test/worlds/trekipelago/
-
-      - name: Run Trekipelago Logic Tests
+      - name: Mount World and Complete Test Suite
         run: |
-          cd archipelago-core
-          python -m pytest test/worlds/trekipelago
+          python - <<'PY'
+          from shutil import copytree, ignore_patterns
+
+          ignored = ignore_patterns("__pycache__", "*.pyc", ".pytest_cache")
+          copytree("trekipelago-repo/trekipelago", "archipelago-core/worlds/trekipelago", ignore=ignored)
+          copytree("trekipelago-repo/tests", "archipelago-core/test/worlds/trekipelago", ignore=ignored)
+          PY
+
+      - name: Run All Trekipelago Tests
+        working-directory: archipelago-core
+        run: python -m pytest -c test/worlds/trekipelago/pytest.ini test/worlds/trekipelago -v
 
   build-pr-artifact:
     name: "Test Build (PR Artifact)"
