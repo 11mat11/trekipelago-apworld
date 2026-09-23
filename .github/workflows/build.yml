@@ -47,25 +47,6 @@ jobs:
         working-directory: archipelago-core
         run: python -m pytest -c test/worlds/trekipelago/pytest.ini test/worlds/trekipelago -v
 
-  build-pr-artifact:
-    name: "Test Build (PR Artifact)"
-    needs: test
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Trekipelago World
-        uses: actions/checkout@v4
-
-      - name: Package .apworld
-        run: |
-          zip -r trekipelago.apworld trekipelago -x "*.pyc" -x "*__pycache__*"
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: trekipelago-apworld-test-build
-          path: trekipelago.apworld
-
   build-and-release:
     name: "Package .apworld & Release"
     needs: test
