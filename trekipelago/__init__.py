@@ -48,7 +48,6 @@ class TrekipelagoWorld(World):
     web = TrekipelagoWeb()
 
     item_name_to_id = {name: data["id"] for name, data in item_dictionary.items()}
-    location_name_to_id = location_name_to_id
 
     _snapped: Dict[str, Any]
 
