@@ -12,7 +12,7 @@ class TrekipelagoLocation(Location):
     game = "Trekipelago"
 
 
-TREKIPELAGO_LOCATION_BASE_ID = 890000000
+TREKIPELAGO_LOCATION_BASE_ID =  1111
 MAX_DISTANCE_M = MAX_DISTANCE_KM * 1000
 
 # Regular distance IDs occupy base+1 .. base+MAX_DISTANCE_CHECKS; orb IDs follow.

@@ -31,10 +31,7 @@ class TotalDistance(Range):
 
 
 class DistanceInterval(Range):
-    """Distance interval per location check (in meters). Will snap to nearest 100!
-    The final interval is shortened when needed to end exactly at the total distance.
-    If fewer than 15 locations would be generated, the interval is reduced to 100 m,
-    or 50 m for a 1 km run when necessary. The total distance is unchanged."""
+    """Distance interval per location check (in meters). The total distance is unchanged."""
 
     display_name = "Distance Interval (m)"
     range_start = DISTANCE_STEP
@@ -52,10 +49,7 @@ class MaxOrbs(Range):
 
 
 class OrbsPerReward(Range):
-    """Number of orbs collected to unlock a location check.
-    At most 100 orb checks are generated; if max_orbs / orbs_per_reward would exceed
-    that, this value is raised automatically.
-    The final interval is shortened when needed to end exactly at max_orbs."""
+    """Number of orbs collected to unlock a location check."""
 
     display_name = "Orbs per Reward"
     range_start = 1

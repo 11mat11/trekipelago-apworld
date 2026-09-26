@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from BaseClasses import Entrance, Region
 
 from .locations import (
@@ -7,31 +9,34 @@ from .locations import (
     orb_location_name,
 )
 
+if TYPE_CHECKING:
+    from . import TrekipelagoWorld
 
-def create_regions(world):
+
+def create_regions(world: "TrekipelagoWorld") -> None:
     multiworld = world.multiworld
     player = world.player
 
     menu = Region("Menu", player, multiworld)
     world_region = Region("World", player, multiworld)
 
-    opts = world.get_snapped_options()
+    layout_options = world.get_snapped_options()
 
     # Distance checks (the last one always equals the total distance)
-    for dist in opts["distances"]:
-        loc_name = distance_location_name(dist)
-        loc = TrekipelagoLocation(
-            player, loc_name, location_name_to_id[loc_name], world_region
+    for distance_meters in layout_options["distances"]:
+        location_name = distance_location_name(distance_meters)
+        location = TrekipelagoLocation(
+            player, location_name, location_name_to_id[location_name], world_region
         )
-        world_region.locations.append(loc)
+        world_region.locations.append(location)
 
     # Orb checks (ordinal names; thresholds go to the client via slot_data)
-    for i in range(1, opts["num_orb_locs"] + 1):
-        loc_name = orb_location_name(i)
-        loc = TrekipelagoLocation(
-            player, loc_name, location_name_to_id[loc_name], world_region
+    for orb_index in range(1, layout_options["num_orb_locs"] + 1):
+        location_name = orb_location_name(orb_index)
+        location = TrekipelagoLocation(
+            player, location_name, location_name_to_id[location_name], world_region
         )
-        world_region.locations.append(loc)
+        world_region.locations.append(location)
 
     menu_to_world = Entrance(player, "Start Trekking", menu)
     menu.exits.append(menu_to_world)
