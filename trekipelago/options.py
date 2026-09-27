@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, PerGameCommonOptions, Range
+from Options import Choice, PerGameCommonOptions, Range, StartInventoryPool
 
 MAX_DISTANCE_KM = 500
 # Normal distance checks use this grid to keep the datapackage small.
@@ -68,6 +68,7 @@ class BuffRatio(Range):
 
 @dataclass
 class TrekipelagoOptions(PerGameCommonOptions):
+    start_inventory_from_pool: StartInventoryPool
     goal: Goal
     total_distance: TotalDistance
     distance_interval: DistanceInterval

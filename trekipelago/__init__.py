@@ -52,7 +52,12 @@ class TrekipelagoWorld(World):
         self._snapped_options = self._snap_options()
         # Pacing rules alone do not constrain where another player's copy lands.
         # Request sphere-zero placement across the entire multiworld.
-        self.multiworld.early_items[self.player]["Background Tracking"] = 1
+        starts_with_tracking = (
+            self.options.start_inventory.value.get("Background Tracking", 0) > 0
+            or self.options.start_inventory_from_pool.value.get("Background Tracking", 0) > 0
+        )
+        if not starts_with_tracking:
+            self.multiworld.early_items[self.player]["Background Tracking"] = 1
 
     def get_snapped_options(self) -> Dict[str, Any]:
         """Return the cached layout after rounding and applying generation limits."""
@@ -154,11 +159,16 @@ class TrekipelagoWorld(World):
 
         # 3. Add items to the world pool
         for item_name in item_names:
-            item_data = item_dictionary[item_name]
-            item = TrekipelagoItem(
-                item_name, item_data["classification"], item_data["id"], self.player
-            )
-            self.multiworld.itempool.append(item)
+            self.multiworld.itempool.append(self.create_item(item_name))
+
+    def create_item(self, name: str) -> TrekipelagoItem:
+        """Create any catalog item for starting inventory, plando, or item links."""
+        item_data = item_dictionary[name]
+        return TrekipelagoItem(name, item_data["classification"], item_data["id"], self.player)
+
+    def get_filler_item_name(self) -> str:
+        """Replace removed pool items with repeatable buffs or traps, never progression."""
+        return get_filler_item_name(self.random, self.options.buff_ratio.value / 100.0)
 
     def set_rules(self) -> None:
         rules.set_rules(self)

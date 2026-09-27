@@ -33,10 +33,18 @@ Trekipelago:
   # vs debuffs/traps (e.g. blindness/slow). Standard app is 70% buffs, 30% traps.
   buff_ratio: 70
 
+  # Restrict your items to your own world, or to other players' worlds.
   local_items: []
   non_local_items: []
+  # Extra starting copies; the normal item pool remains unchanged.
   start_inventory: {}
+  # Starting copies removed from the pool and replaced with buffs/traps.
+  # Example: {"Background Tracking": 1, "Progressive Speed": 2}
+  start_inventory_from_pool: {}
+  # Reveal item locations or the contents of named locations at the start.
   start_hints: []
   start_location_hints: []
+  # Excluded checks cannot contain progression/useful items; priority checks
+  # favor progression while respecting reachability and the early/late rules.
   exclude_locations: []
   priority_locations: []
