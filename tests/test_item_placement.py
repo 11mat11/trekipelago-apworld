@@ -53,6 +53,9 @@ def test_foreign_item_placement_boundaries(location_name, allows_early, allows_p
     ({"distance_interval": 900}, "4500m", False),
     ({"max_orbs": 43, "orbs_per_reward": 5}, "Orb Check 7", False),
     ({"max_orbs": 43, "orbs_per_reward": 5}, "Orb Check 9", False),
+    ({"max_orbs": 1000, "orbs_per_reward": 1}, "Orb Check 800", True),
+    ({"max_orbs": 1000, "orbs_per_reward": 1}, "Orb Check 801", False),
+    ({"max_orbs": 1000, "orbs_per_reward": 1}, "Orb Check 1000", False),
 ])
 def test_placement_uses_actual_thresholds(options, location_name, allows_progression):
     multiworld = setup_multiworld([TrekipelagoWorld] * 2, seed=0, options=options)
@@ -65,6 +68,7 @@ class TestMixedGamePlacement(unittest.TestCase):
         configurations = [
             {},
             {"max_orbs": 0},
+            {"max_orbs": 1000, "orbs_per_reward": 1, "goal": 1},
             {"max_orbs": 43, "orbs_per_reward": 100},
             {"distance_interval": 900, "max_orbs": 43, "orbs_per_reward": 5},
             {"total_distance": 1, "distance_interval": 1000, "max_orbs": 14,

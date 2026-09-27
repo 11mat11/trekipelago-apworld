@@ -12,7 +12,7 @@ from .locations import (
     distance_location_name,
     orb_location_name,
 )
-from .options import DISTANCE_STEP, MAX_ORB_CHECKS, SHORT_DISTANCE_STEP, Goal, TrekipelagoOptions
+from .options import DISTANCE_STEP, SHORT_DISTANCE_STEP, Goal, TrekipelagoOptions
 
 # Room for the 9 core progression items plus at least 6 filler items.
 MIN_LOCATIONS = 15
@@ -70,7 +70,7 @@ class TrekipelagoWorld(World):
         Turn raw YAML options into a concrete, always-generatable layout:
         - total distance is given in km and converted to meters (always on the grid),
         - the interval is snapped to the DISTANCE_STEP grid and clamped to the total,
-        - orb checks are capped at MAX_ORB_CHECKS by raising orbs_per_reward,
+        - orb checks keep the requested orbs_per_reward, with a shorter final check if needed,
         - at least MIN_LOCATIONS locations are guaranteed for the core progression.
         Every adjustment is logged so the host can see what changed.
         """
@@ -88,16 +88,7 @@ class TrekipelagoWorld(World):
 
         max_orbs = self.options.max_orbs.value
         orbs_per_reward = self.options.orbs_per_reward.value
-        orb_location_count = 0
-        if max_orbs > 0:
-            minimum_orbs_per_reward = math.ceil(max_orbs / MAX_ORB_CHECKS)
-            if orbs_per_reward < minimum_orbs_per_reward:
-                self._warn(
-                    f"orbs_per_reward raised from {orbs_per_reward} to {minimum_orbs_per_reward} "
-                    f"to stay within {MAX_ORB_CHECKS} orb checks."
-                )
-                orbs_per_reward = minimum_orbs_per_reward
-            orb_location_count = math.ceil(max_orbs / orbs_per_reward)
+        orb_location_count = math.ceil(max_orbs / orbs_per_reward)
 
         distance_location_count = math.ceil(total_distance_meters / interval_meters)
 

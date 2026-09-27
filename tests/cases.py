@@ -34,12 +34,12 @@ LAYOUT_CASES = [
      50, list(range(50, 1001, 50)), [], 5),
     ("distance-remainder", {"distance_interval": 900},
      900, [900, 1800, 2700, 3600, 4500, 5000], list(range(5, 51, 5)), 5),
-    ("orb-cap", {"max_orbs": 1000, "orbs_per_reward": 1, "goal": 1},
-     500, list(range(500, 5001, 500)), list(range(10, 1001, 10)), 10),
+    ("thousand-orbs", {"max_orbs": 1000, "orbs_per_reward": 1, "goal": 1},
+     500, list(range(500, 5001, 500)), list(range(1, 1001)), 1),
     ("orb-remainder", {"max_orbs": 943, "orbs_per_reward": 100, "goal": 1},
      500, list(range(500, 5001, 500)), list(range(100, 901, 100)) + [943], 100),
-    ("cap-remainder", {"max_orbs": 999, "orbs_per_reward": 1, "goal": 1},
-     500, list(range(500, 5001, 500)), list(range(10, 991, 10)) + [999], 10),
+    ("999-orbs", {"max_orbs": 999, "orbs_per_reward": 1, "goal": 1},
+     500, list(range(500, 5001, 500)), list(range(1, 1000)), 1),
     ("single-orb", {"max_orbs": 43, "orbs_per_reward": 100, "goal": 1},
      100, list(range(100, 5001, 100)), [43], 100),
     ("short-zero", {"total_distance": 1, "distance_interval": 1000, "max_orbs": 0, "orbs_per_reward": 1},
@@ -52,6 +52,14 @@ LAYOUT_CASES = [
      500, list(range(500, 5001, 500)), [1, 2, 3, 4, 5], 1),
     ("fourteen-fallback", {"max_orbs": 4, "orbs_per_reward": 1},
      100, list(range(100, 5001, 100)), [1, 2, 3, 4], 1),
+    ("hundred-orbs", {"max_orbs": 100, "orbs_per_reward": 1},
+     500, list(range(500, 5001, 500)), list(range(1, 101)), 1),
+    ("101-orbs", {"max_orbs": 101, "orbs_per_reward": 1},
+     500, list(range(500, 5001, 500)), list(range(1, 102)), 1),
+    ("large-exact-orb-interval", {"max_orbs": 999, "orbs_per_reward": 3},
+     500, list(range(500, 5001, 500)), list(range(3, 1000, 3)), 3),
+    ("large-shortened-orb-check", {"max_orbs": 1000, "orbs_per_reward": 3},
+     500, list(range(500, 5001, 500)), list(range(3, 1000, 3)) + [1000], 3),
 ]
 
 ORB_CONFIGS = [
@@ -80,6 +88,11 @@ def generation_cases():
         for max_orbs in (0, 50):
             for seed in range(10):
                 candidates.append(GenerationCase(f"tracking-{max_orbs}", {"max_orbs": max_orbs}, players, seed))
+        for seed in range(3):
+            candidates.append(GenerationCase(
+                "thousand-orbs", {"max_orbs": 1000, "orbs_per_reward": 1, "goal": 1},
+                players, seed,
+            ))
     for name, options, *_ in LAYOUT_CASES[:7]:
         candidates.append(GenerationCase(name, options))
     candidates.append(GenerationCase("non-local-tracking", {

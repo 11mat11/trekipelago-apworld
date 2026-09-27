@@ -25,7 +25,7 @@ Trekipelago:
   max_orbs: 50
 
   # Number of orbs you need to collect to unlock an orb location check.
-  # At most 100 orb checks are generated; this value is raised automatically if needed.
+  # This value is preserved; 1000 max_orbs with an interval of 1 creates 1000 checks.
   # The final interval ends exactly at max_orbs (e.g. 943/100 ends with 43 orbs).
   orbs_per_reward: 5
 

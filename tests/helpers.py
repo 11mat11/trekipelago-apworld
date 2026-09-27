@@ -25,7 +25,9 @@ def assert_layout(multiworld: MultiWorld, player: int) -> None:
     assert progression == {"Background Tracking": 1, "Progressive Speed": 5, "Passive Collector": 3}
     assert len(items) - sum(progression.values()) == len(locations) - 9
     assert opts["num_dist_locs"] == len(opts["distances"])
-    assert opts["num_orb_locs"] == len(opts["orbs"]) <= 100
+    assert opts["num_orb_locs"] == len(opts["orbs"])
+    assert opts["orbs_per_reward"] == world.options.orbs_per_reward.value
+    assert all(previous < current for previous, current in zip(opts["orbs"], opts["orbs"][1:]))
     assert opts["distances"][-1] == opts["total_dist"]
     assert opts["orbs"][-1:] == ([opts["max_orbs"]] if opts["max_orbs"] else [])
     slot = world.fill_slot_data()
