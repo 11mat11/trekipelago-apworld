@@ -69,6 +69,8 @@ class TrekipelagoWorld(World):
         self._snapped_options = self._snap_options()
         # Pacing rules alone do not constrain where another player's copy lands.
         # Request sphere-zero placement across the entire multiworld.
+
+        # Check both inventory options for tracking item
         starts_with_tracking = (
             self.options.start_inventory.value.get("Background Tracking", 0) > 0
             or getattr(self.options, "start_inventory_from_pool", {}).value.get(
@@ -160,32 +162,52 @@ class TrekipelagoWorld(World):
     def create_regions(self) -> None:
         regions.create_regions(self)
 
+    def pre_fill(self) -> None:
+        # Enforce hard cap limit on core progression items granted through standard start_inventory.
+        # This prevents breaking logical pacing or risking UI overflow on the mobile client.
+        if not hasattr(self.options, "start_inventory"):
+            return
+
+        inventory = self.options.start_inventory.value
+        core_caps = {
+            "Background Tracking": 1,
+            "Passive Collector": 3,
+            "Progressive Speed": 5,
+        }
+
+        for item_name, max_cap in core_caps.items():
+            if inventory.get(item_name, 0) > 0:
+                # Calculate how many extra items beyond the typical cap the player possesses
+                # start_inventory items are precollected automatically by Archipelago Main.py
+                # This code reduces the placed items to balance the total count, ensuring limits.
+                reduction = min(inventory[item_name], max_cap)
+
+                # Try to remove up to 'reduction' instances of the item from the itempool
+                items_to_remove = []
+                count = 0
+                for item in self.multiworld.itempool:
+                    if item.player == self.player and item.name == item_name:
+                        items_to_remove.append(item)
+                        count += 1
+                        if count == reduction:
+                            break
+
+                for item in items_to_remove:
+                    self.multiworld.itempool.remove(item)
+                    self.multiworld.itempool.append(self.create_filler())
+
     def create_items(self) -> None:
         layout_options = self.get_snapped_options()
         total_locations = (
             layout_options["num_dist_locs"] + layout_options["num_orb_locs"]
         )
 
-        # Target progression items
-        progression_pool = {
-            "Background Tracking": 1,
-            "Passive Collector": 3,
-            "Progressive Speed": 5,
-        }
-
-        # Reduce pool for items given in start_inventory so they act as replacements rather than additions
-        if hasattr(self.options, "start_inventory"):
-            for item_name, amount in self.options.start_inventory.value.items():
-                if item_name in progression_pool:
-                    progression_pool[item_name] = max(
-                        0, progression_pool[item_name] - amount
-                    )
-
         item_names = []
 
-        # 1. Guaranteed progression items
-        for item_name, count in progression_pool.items():
-            item_names.extend([item_name] * count)
+        # 1. Guaranteed progression items (9 items)
+        item_names.append("Background Tracking")
+        item_names.extend(["Passive Collector"] * 3)
+        item_names.extend(["Progressive Speed"] * 5)
 
         # 2. Filler items based on mobile app statistics
         buff_ratio = layout_options["buff_ratio"] / 100.0
