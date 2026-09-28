@@ -2,8 +2,19 @@ from collections import Counter
 
 import pytest
 from BaseClasses import CollectionState, ItemClassification
+from test.general import setup_default_world
 
-from .helpers import generate_with_common_options
+
+# Generate with options using AP's test suite setup method
+def generate_with_common_options(options, players=1, seed=0):
+    multiworld = setup_default_world(
+        game="Trekipelago",
+        options={1: options}
+        if players == 1
+        else {i: options.copy() for i in range(1, players + 1)},
+        seed=seed,
+    )
+    return multiworld
 
 
 def test_create_item_supports_every_catalog_entry():
