@@ -270,7 +270,10 @@ class TrekipelagoWorld(World):
             "base_id": TREKIPELAGO_LOCATION_BASE_ID,
             "goal": (
                 "distance_only"
-                if layout_options["goal"] == Goal.option_distance_only
+                if (
+                    layout_options["goal"] == Goal.option_distance_only
+                    or layout_options["num_orb_locs"] == 0
+                )
                 else "distance_and_orbs"
             ),
             "distance_step": min(DISTANCE_STEP, layout_options["interval"]),
