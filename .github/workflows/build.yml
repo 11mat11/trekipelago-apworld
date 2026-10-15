@@ -1,0 +1,74 @@
+name: Trekipelago CI/CD
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    name: "Run Unit & Generation Tests"
+    runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      AP_TEST_WORLDS: trekipelago
+    steps:
+      - name: Checkout Trekipelago World
+        uses: actions/checkout@v4
+        with:
+          path: trekipelago-repo
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Clone Archipelago Core
+        run: git clone --depth 1 https://github.com/ArchipelagoMW/Archipelago.git archipelago-core
+
+      - name: Install Dependencies
+        working-directory: archipelago-core
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+
+      - name: Mount World and Complete Test Suite
+        run: |
+          python - <<'PY'
+          from shutil import copytree, ignore_patterns
+
+          ignored = ignore_patterns("__pycache__", "*.pyc", ".pytest_cache")
+          copytree("trekipelago-repo/trekipelago", "archipelago-core/worlds/trekipelago", ignore=ignored)
+          copytree("trekipelago-repo/tests", "archipelago-core/test/worlds/trekipelago", ignore=ignored)
+          PY
+
+      - name: Run All Trekipelago Tests
+        working-directory: archipelago-core
+        run: python -m pytest -c test/worlds/trekipelago/pytest.ini test/worlds/trekipelago -v
+
+  build-and-release:
+    name: "Package .apworld & Release"
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Trekipelago World
+        uses: actions/checkout@v4
+
+      - name: Package .apworld
+        run: |
+          zip -r trekipelago.apworld trekipelago -x "*.pyc" -x "*__pycache__*"
+
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Main Build"
+          body: "Automatically generated .apworld package (Trekipelago)."
+          files: trekipelago.apworld
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
